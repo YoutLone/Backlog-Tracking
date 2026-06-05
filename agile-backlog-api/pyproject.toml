@@ -1,0 +1,25 @@
+[project]
+name = "agile-backlog-api"
+version = "0.1.0"
+description = "Agile backlog tracking API with FastAPI and Supabase Postgres"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "asyncpg>=0.29.0",
+    "python-jose[cryptography]>=3.3.0",  # JWT
+    "passlib[bcrypt]>=1.7.4",            # Password hashing
+    "pydantic[email]>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "python-multipart>=0.0.6",           # Form data for login
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.25.0",                     # For testing FastAPI
+    "ruff>=0.1.0",                       # Linting
+    "mypy>=1.7.0",                       # Type checking
+]
