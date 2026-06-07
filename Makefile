@@ -1,42 +1,44 @@
-.PHONY: build up down logs test shell clean
+COMPOSE = docker compose -p agile-backlog-api
+
+.PHONY: build up down logs test shell clean restart
 
 build:
-	docker-compose build
+	$(COMPOSE) build
 
 up:
-	docker-compose up
+	$(COMPOSE) up
 
 up-d:
-	docker-compose up -d
+	$(COMPOSE) up -d
 
 down:
-	docker-compose down
+	$(COMPOSE) down
 
 logs:
-	docker-compose logs -f api
+	$(COMPOSE) logs -f api
 
 test:
-	docker-compose exec api pytest tests/ -v
+	$(COMPOSE) exec api pytest tests/ -v
 
 test-unit:
-	docker-compose exec api pytest tests/unit/ -v
+	$(COMPOSE) exec api pytest tests/unit/ -v
 
 test-integration:
-	docker-compose exec api pytest tests/integration/ -v
+	$(COMPOSE) exec api pytest tests/integration/ -v
 
 shell:
-	docker-compose exec api bash
+	$(COMPOSE) exec api bash
 
 clean:
-	docker-compose down -v
+	$(COMPOSE) down -v
 	docker system prune -f
 
 restart: down up-d
 
-# Usage:
-# make build  - Build the image
-# make up     - Start with logs
-# make up-d   - Start in background
-# make test   - Run all tests
-# make shell  - Get shell in container
-# make down   - Stop container
+# Common commands:
+# make up     Start with logs
+# make up-d   Start in background
+# make down   Stop containers
+# make logs   Show API logs
+# make test   Run tests
+# make shell  Open container shell

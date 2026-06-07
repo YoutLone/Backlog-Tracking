@@ -9,32 +9,31 @@ class TestBacklogService:
         """Test status transition rules."""
         transitions = BacklogService.ALLOWED_TRANSITIONS
         
-        # Test backlog transitions
-        # Backlog can only go to todo (not directly to done)
+        # Backlog starts by moving to todo.
         assert 'todo' in transitions['backlog']
-        assert 'done' not in transitions['backlog']  # ✅ Fixed: removed 'done' assertion
+        assert 'done' not in transitions['backlog']
         assert 'in_progress' not in transitions['backlog']
         assert 'review' not in transitions['backlog']
         
-        # Test todo transitions
+        # Todo can move forward or back.
         assert 'in_progress' in transitions['todo']
         assert 'backlog' in transitions['todo']
         assert 'done' not in transitions['todo']
         assert 'review' not in transitions['todo']
         
-        # Test in_progress transitions
+        # In progress can move to review or back to todo.
         assert 'review' in transitions['in_progress']
         assert 'todo' in transitions['in_progress']
         assert 'done' not in transitions['in_progress']
         assert 'backlog' not in transitions['in_progress']
         
-        # Test review transitions
+        # Review can finish or go back to in progress.
         assert 'done' in transitions['review']
         assert 'in_progress' in transitions['review']
         assert 'backlog' not in transitions['review']
         assert 'todo' not in transitions['review']
         
-        # Test done can be reopened to backlog
+        # Done items can be reopened.
         assert 'backlog' in transitions['done']
         assert 'todo' not in transitions['done']
         assert 'in_progress' not in transitions['done']
@@ -44,32 +43,24 @@ class TestBacklogService:
         """Test that invalid transitions are not allowed."""
         transitions = BacklogService.ALLOWED_TRANSITIONS
         
-        # Can't go from backlog directly to in_progress
+        # No workflow shortcuts.
         assert 'in_progress' not in transitions['backlog']
-        
-        # Can't go from backlog directly to done
         assert 'done' not in transitions['backlog']
-        
-        # Can't go from todo directly to done
         assert 'done' not in transitions['todo']
-        
-        # Can't go from in_progress directly to done
         assert 'done' not in transitions['in_progress']
-        
-        # Can't go from done to in_progress
         assert 'in_progress' not in transitions['done']
     
     def test_complete_workflow_path(self):
         """Test the complete valid workflow path."""
         transitions = BacklogService.ALLOWED_TRANSITIONS
         
-        # Valid workflow: backlog -> todo -> in_progress -> review -> done
+        # Normal path: backlog -> todo -> in_progress -> review -> done.
         assert 'todo' in transitions['backlog']
         assert 'in_progress' in transitions['todo']
         assert 'review' in transitions['in_progress']
         assert 'done' in transitions['review']
         
-        # Reopen workflow: done -> backlog
+        # Reopen path: done -> backlog.
         assert 'backlog' in transitions['done']
     
     def test_transition_dictionary_structure(self):

@@ -19,7 +19,6 @@ class UserCreate(BaseModel):
             raise ValueError('Password must contain at least one uppercase letter')
         if not any(c.isdigit() for c in v):
             raise ValueError('Password must contain at least one digit')
-        # Removed the 72-byte limit check since Argon2 has no such limitation
         return v
 
 class UserLogin(BaseModel):

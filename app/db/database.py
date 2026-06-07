@@ -19,11 +19,11 @@ class Database:
                 cls._pool = await asyncpg.create_pool(
                     settings.database_url.get_secret_value(),
                     min_size=1,
-                    max_size=5,  # Supabase free tier limit
+                    max_size=5,  # Keep pool small for Supabase free tier.
                     command_timeout=30,
                     max_queries=50000,
                     max_inactive_connection_lifetime=300,
-                    statement_cache_size=0,  # CRITICAL: Disable for PgBouncer compatibility
+                    statement_cache_size=0,  # Required for Supabase PgBouncer.
                     server_settings={
                         'application_name': 'agile_backlog_api'
                     }
@@ -48,11 +48,11 @@ async def init_db():
         pool = await Database.get_pool()
         
         async with pool.acquire() as conn:
-            # Test connection
+            # Confirm the database is reachable.
             version = await conn.fetchval("SELECT version()")
             logger.info(f"Connected to PostgreSQL: {version[:50]}...")
             
-            # Check if users table exists
+            # Use the users table as the schema check.
             has_users = await conn.fetchval("""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
@@ -69,7 +69,7 @@ async def init_db():
                     with open(migration_path, 'r') as f:
                         migration_sql = f.read()
                     
-                    # Execute each statement separately
+                    # Run each statement on its own.
                     statements = []
                     current_statement = []
                     
@@ -98,7 +98,7 @@ async def init_db():
                 
     except Exception as e:
         logger.error(f"Database initialization error: {e}")
-        # Don't raise - allow app to start
+        # Let the app start so health/debug endpoints still work.
 
 async def get_db_connection():
     """Dependency for FastAPI endpoints to get a DB connection."""

@@ -18,8 +18,7 @@ class ActivityRepository:
                   new_values: Optional[Dict] = None) -> None:
         """Log an activity."""
         try:
-            # Convert dicts to JSON strings for PostgreSQL jsonb
-            # default=str handles UUID and datetime objects
+            # default=str handles UUID and datetime values.
             old_json = json.dumps(old_values, default=str) if old_values else None
             new_json = json.dumps(new_values, default=str) if new_values else None
             
@@ -31,9 +30,8 @@ class ActivityRepository:
                 user_id, team_id, action, entity_type, entity_id, old_json, new_json
             )
         except Exception as e:
-            # Log error but don't fail the main operation
+            # Audit failures should not block the main action.
             logger.error(f"Failed to log activity: {e}. Action: {action}, Entity: {entity_type}/{entity_id}")
-            # Don't raise - allow main operation to continue
     
     async def get_for_entity(self, entity_type: str, entity_id: UUID, limit: int = 50) -> List[Dict[str, Any]]:
         """Get activity log for a specific entity."""
@@ -50,7 +48,7 @@ class ActivityRepository:
                 entity_type, entity_id, limit
             )
             
-            # Parse JSON strings back to dicts
+            # Return JSONB values as normal dicts when possible.
             result = []
             for row in rows:
                 row_dict = dict(row)

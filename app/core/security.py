@@ -4,17 +4,15 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.core.config import settings
 
-# Password hashing context using Argon2
-# Argon2 has no 72-byte limitation and is more secure than bcrypt
-# It's the winner of the Password Hashing Competition
+# Argon2 avoids bcrypt's 72-byte password limit.
 pwd_context = CryptContext(
     schemes=["argon2"],
     deprecated="auto",
-    argon2__time_cost=2,      # Number of iterations (higher = slower but more secure)
-    argon2__memory_cost=1024,  # Memory in KB (default 1024)
-    argon2__parallelism=2,     # Number of parallel threads
-    argon2__hash_len=32,       # Length of the hash in bytes
-    argon2__salt_len=16        # Length of the salt in bytes
+    argon2__time_cost=2,
+    argon2__memory_cost=1024,
+    argon2__parallelism=2,
+    argon2__hash_len=32,
+    argon2__salt_len=16
 )
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

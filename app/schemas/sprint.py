@@ -32,7 +32,7 @@ class SprintResponse(BaseModel):
     start_date: date
     end_date: date
     is_active: bool
-    created_by: UUID
+    created_by: UUID  
     created_at: datetime
     updated_at: datetime
     total_story_points: Optional[int] = None
@@ -41,7 +41,6 @@ class SprintResponse(BaseModel):
     
     class Config:
         from_attributes = True
-
 # Use string forward reference for the circular dependency
 class SprintDetailResponse(SprintResponse):
     items: List["BacklogItemResponse"] = []

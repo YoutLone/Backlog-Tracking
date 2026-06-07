@@ -9,13 +9,13 @@ from datetime import datetime
 class BacklogService:
     """Backlog management with ranking and workflow rules."""
     
-    # Workflow transition rules
+    # Allowed status moves.
     ALLOWED_TRANSITIONS = {
-        'backlog': ['todo'],  # Can also delete from backlog
+        'backlog': ['todo'],
         'todo': ['in_progress', 'backlog'],
         'in_progress': ['review', 'todo'],
         'review': ['done', 'in_progress'],
-        'done': ['backlog']  # Allow reopening
+        'done': ['backlog']
     }
     
     def __init__(self, backlog_repo: BacklogRepository, user_repo: UserRepository, 
@@ -26,14 +26,14 @@ class BacklogService:
         self.activity_repo = activity_repo
     
     async def _check_team_access(self, user_id: UUID, team_id: UUID):
-        """Helper to verify team membership."""
+        """Make sure the user belongs to the team."""
         if not await self.user_repo.is_team_member(user_id, team_id):
             raise PermissionError("User not a member of this team")
     
     async def _log_activity(self, user_id: UUID, team_id: UUID, action: str, 
                            entity_type: str, entity_id: UUID, 
                            old_values: Dict = None, new_values: Dict = None):
-        """Helper to log activities."""
+        """Write an audit entry."""
         await self.activity_repo.log(user_id, team_id, action, entity_type, entity_id, old_values, new_values)
     
     async def create_item(self, user_id: UUID, team_id: UUID, title: str, item_type: str,
@@ -42,13 +42,13 @@ class BacklogService:
         """Create a new backlog item."""
         await self._check_team_access(user_id, team_id)
         
-        # Validate sprint if provided
+        # Sprint must belong to the same team.
         if sprint_id:
             sprint = await self.sprint_repo.get_by_id(sprint_id, team_id)
             if not sprint:
                 raise ValueError("Sprint not found or doesn't belong to this team")
         
-        # Validate assigned_to if provided
+        # Assignee must be a team member.
         if assigned_to:
             if not await self.user_repo.is_team_member(assigned_to, team_id):
                 raise ValueError("Assigned user is not a member of this team")
@@ -58,7 +58,7 @@ class BacklogService:
             story_points, assigned_to, sprint_id
         )
         
-        # Log activity
+        # Keep an audit trail.
         await self._log_activity(user_id, team_id, "CREATE", "backlog_item", item['id'], 
                                 None, item)
         
@@ -86,25 +86,25 @@ class BacklogService:
         """Update item fields."""
         await self._check_team_access(user_id, team_id)
         
-        # Get current state for audit
+        # Keep the old values for the audit log.
         current = await self.backlog_repo.get_by_id(item_id, team_id)
         if not current:
             raise ValueError("Backlog item not found")
         
-        # Validate sprint if updating
+        # Sprint changes stay inside the team.
         if kwargs.get('sprint_id'):
             sprint = await self.sprint_repo.get_by_id(kwargs['sprint_id'], team_id)
             if not sprint:
                 raise ValueError("Sprint not found or doesn't belong to this team")
         
-        # Validate assigned_to if updating
+        # Assignee changes stay inside the team.
         if kwargs.get('assigned_to'):
             if not await self.user_repo.is_team_member(kwargs['assigned_to'], team_id):
                 raise ValueError("Assigned user is not a member of this team")
         
         updated = await self.backlog_repo.update(item_id, team_id, **kwargs)
         
-        # Log changes
+        # Log only fields that actually changed.
         changes = {k: v for k, v in kwargs.items() if v is not None and current.get(k) != v}
         if changes:
             await self._log_activity(user_id, team_id, "UPDATE", "backlog_item", item_id,
@@ -116,27 +116,26 @@ class BacklogService:
         """Change item status with workflow validation."""
         await self._check_team_access(user_id, team_id)
         
-        # Get current item
+        # Current status decides which moves are allowed.
         item = await self.backlog_repo.get_by_id(item_id, team_id)
         if not item:
             raise ValueError("Backlog item not found")
         
         old_status = item['status']
         
-        # Validate transition
+        # Reject jumps outside the workflow.
         if new_status not in self.ALLOWED_TRANSITIONS.get(old_status, []):
             allowed = ', '.join(self.ALLOWED_TRANSITIONS.get(old_status, []))
             raise ValueError(f"Invalid status transition from '{old_status}' to '{new_status}'. "
                            f"Allowed: {allowed if allowed else 'none (item cannot be changed)'}")
         
-        # Additional validation: can't mark as done if not assigned
+        # No assignee requirement yet.
         if new_status == 'done' and not item.get('assigned_to'):
-            # We'll allow but warn in logs - in strict mode, reject
             pass
         
         updated = await self.backlog_repo.update_status(item_id, team_id, new_status)
         
-        # Log status change
+        # Track the workflow move.
         await self._log_activity(user_id, team_id, "STATUS_CHANGE", "backlog_item", item_id,
                                 {'status': old_status}, {'status': new_status})
         
@@ -150,16 +149,15 @@ class BacklogService:
         """
         await self._check_team_access(user_id, team_id)
         
-        # Verify all items belong to team
+        # Every reordered item must belong to this team.
         for item_id, _ in reorder_list:
             item = await self.backlog_repo.get_by_id(item_id, team_id)
             if not item:
                 raise ValueError(f"Item {item_id} not found in this team")
         
-        # Perform reorder
         success = await self.backlog_repo.reorder_items(team_id, reorder_list)
         
-        # Log reorder action
+        # Record the bulk reorder.
         await self._log_activity(user_id, team_id, "REORDER", "backlog", team_id,
                                 None, {'reordered_items': len(reorder_list)})
         
@@ -169,12 +167,12 @@ class BacklogService:
         """Move item to a sprint or remove from sprint."""
         await self._check_team_access(user_id, team_id)
         
-        # Get current item
+        # Keep the current sprint for audit.
         item = await self.backlog_repo.get_by_id(item_id, team_id)
         if not item:
             raise ValueError("Backlog item not found")
         
-        # Validate sprint if provided
+        # Sprint must belong to this team.
         if sprint_id:
             sprint = await self.sprint_repo.get_by_id(sprint_id, team_id)
             if not sprint:
@@ -191,7 +189,7 @@ class BacklogService:
         """Delete an item."""
         await self._check_team_access(user_id, team_id)
         
-        # Get item for audit before deletion
+        # Save the deleted item in the audit log.
         item = await self.backlog_repo.get_by_id(item_id, team_id)
         if not item:
             raise ValueError("Backlog item not found")
@@ -205,7 +203,7 @@ class BacklogService:
         """Get all items in a sprint with statistics."""
         await self._check_team_access(user_id, team_id)
         
-        # Verify sprint belongs to team
+        # Sprint must belong to this team.
         sprint = await self.sprint_repo.get_by_id(sprint_id, team_id)
         if not sprint:
             raise ValueError("Sprint not found or doesn't belong to this team")

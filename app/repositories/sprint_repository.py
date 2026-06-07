@@ -16,7 +16,8 @@ class SprintRepository:
             """
             INSERT INTO sprints (team_id, created_by, name, goal, start_date, end_date)
             VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, team_id, name, goal, start_date, end_date, is_active, created_at, updated_at
+            RETURNING id, team_id, name, goal, start_date, end_date, is_active, 
+                      created_by, created_at, updated_at
             """,
             team_id, created_by, name, goal, start_date, end_date
         )
@@ -25,14 +26,24 @@ class SprintRepository:
     async def get_by_id(self, sprint_id: UUID, team_id: UUID) -> Optional[Dict[str, Any]]:
         """Get sprint by ID with team check."""
         row = await self.conn.fetchrow(
-            "SELECT * FROM sprints WHERE id = $1 AND team_id = $2",
+            """
+            SELECT id, team_id, name, goal, start_date, end_date, is_active, 
+                   created_by, created_at, updated_at 
+            FROM sprints 
+            WHERE id = $1 AND team_id = $2
+            """,
             sprint_id, team_id
         )
         return dict(row) if row else None
     
     async def list_by_team(self, team_id: UUID, include_inactive: bool = True) -> List[Dict[str, Any]]:
         """List all sprints for a team."""
-        query = "SELECT * FROM sprints WHERE team_id = $1"
+        query = """
+            SELECT id, team_id, name, goal, start_date, end_date, is_active, 
+                   created_by, created_at, updated_at 
+            FROM sprints 
+            WHERE team_id = $1
+        """
         if not include_inactive:
             query += " AND is_active = true"
         query += " ORDER BY start_date DESC"
@@ -65,7 +76,8 @@ class SprintRepository:
             UPDATE sprints 
             SET {', '.join(set_parts)}, updated_at = NOW()
             WHERE id = ${param_counter} AND team_id = ${param_counter + 1}
-            RETURNING *
+            RETURNING id, team_id, name, goal, start_date, end_date, is_active, 
+                      created_by, created_at, updated_at
         """
         
         row = await self.conn.fetchrow(query, *params)
@@ -85,8 +97,8 @@ class SprintRepository:
             """
             SELECT 
                 COUNT(*) as item_count,
-                SUM(story_points) as total_story_points,
-                SUM(CASE WHEN status = 'done' THEN story_points ELSE 0 END) as completed_story_points
+                COALESCE(SUM(story_points), 0) as total_story_points,
+                COALESCE(SUM(CASE WHEN status = 'done' THEN story_points ELSE 0 END), 0) as completed_story_points
             FROM backlog_items
             WHERE sprint_id = $1 AND team_id = $2
             """,
