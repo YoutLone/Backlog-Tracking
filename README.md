@@ -334,8 +334,6 @@ If this API were moving toward production, I would add:
 
 ## Demo Checklist
 
-For the live presentation, a concise flow is:
-
 1. Open `/docs`.
 2. Register and login.
 3. Create a team.
